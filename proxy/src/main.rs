@@ -308,7 +308,7 @@ fn main() -> Result<(), ShredstreamProxyError> {
         maybe_multicast_socket,
         args.num_threads,
         deduper.clone(),
-        args.grpc_service_port.is_some(),
+        args.grpc_service_port.is_some() || args.grpc_socket_path.is_some(),
         entry_sender.clone(),
         args.debug_trace_shred,
         use_discovery_service,
