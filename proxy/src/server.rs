@@ -16,11 +16,13 @@ use jito_protos::shredstream::{
     Entry as PbEntry, SubscribeEntriesRequest,
 };
 use log::{debug, error, info};
+use std::sync::Arc as StdArc;
 use tokio::{
     net::UnixListener,
     sync::broadcast::{Receiver as BroadcastReceiver, Sender},
 };
 use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
+use tonic::transport::server::Connected;
 
 #[derive(Debug, Clone)]
 pub struct ShredstreamProxyService {
@@ -71,14 +73,75 @@ impl UnixSocketStream {
 }
 
 impl Stream for UnixSocketStream {
-    type Item = io::Result<tokio::net::UnixStream>;
+    type Item = io::Result<UnixStreamWrapper>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let listener = &mut self.get_mut().listener;
         match Pin::new(listener).poll_accept(cx) {
-            Poll::Ready(Ok((stream, _))) => Poll::Ready(Some(Ok(stream))),
+            Poll::Ready(Ok((stream, _))) => Poll::Ready(Some(Ok(UnixStreamWrapper(stream)))),
             Poll::Ready(Err(e)) => Poll::Ready(Some(Err(e))),
             Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct UdsConnectInfo {
+    peer_addr: Option<StdArc<tokio::net::unix::SocketAddr>>,
+    peer_cred: Option<tokio::net::unix::UCred>,
+}
+
+pub struct UnixStreamWrapper(pub tokio::net::UnixStream);
+
+impl tokio::io::AsyncRead for UnixStreamWrapper {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.0).poll_read(cx, buf)
+    }
+}
+
+impl tokio::io::AsyncWrite for UnixStreamWrapper {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.0).poll_write(cx, buf)
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.0).poll_flush(cx)
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.0).poll_shutdown(cx)
+    }
+}
+
+impl std::ops::Deref for UnixStreamWrapper {
+    type Target = tokio::net::UnixStream;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for UnixStreamWrapper {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Connected for UnixStreamWrapper {
+    type ConnectInfo = UdsConnectInfo;
+
+    fn connect_info(&self) -> Self::ConnectInfo {
+        UdsConnectInfo {
+            peer_addr: self.0.peer_addr().ok().map(|addr| StdArc::new(addr)),
+            peer_cred: self.0.peer_cred().ok(),
         }
     }
 }
