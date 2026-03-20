@@ -1,25 +1,33 @@
 use std::{
+    io,
     net::SocketAddr,
+    path::PathBuf,
+    pin::Pin,
     sync::{atomic::AtomicBool, Arc},
+    task::{Context, Poll},
     thread::JoinHandle,
     time::Duration,
 };
 
 use crossbeam_channel::Receiver;
+use futures_core::Stream;
 use jito_protos::shredstream::{
     shredstream_proxy_server::{ShredstreamProxy, ShredstreamProxyServer},
     Entry as PbEntry, SubscribeEntriesRequest,
 };
-use log::{debug, info};
-use tokio::sync::broadcast::{Receiver as BroadcastReceiver, Sender};
+use log::{debug, error, info};
+use tokio::{
+    net::UnixListener,
+    sync::broadcast::{Receiver as BroadcastReceiver, Sender},
+};
 use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ShredstreamProxyService {
     entry_sender: Arc<Sender<PbEntry>>,
 }
 
-pub fn start_server_thread(
+pub fn start_grpc_server(
     addr: SocketAddr,
     entry_sender: Arc<Sender<PbEntry>>,
     exit: Arc<AtomicBool>,
@@ -51,6 +59,82 @@ pub fn start_server_thread(
         }
     })
 }
+
+struct UnixSocketStream {
+    listener: UnixListener,
+}
+
+impl UnixSocketStream {
+    fn new(listener: UnixListener) -> Self {
+        Self { listener }
+    }
+}
+
+impl Stream for UnixSocketStream {
+    type Item = io::Result<tokio::net::UnixStream>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let listener = &mut self.get_mut().listener;
+        match Pin::new(listener).poll_accept(cx) {
+            Poll::Ready(Ok((stream, _))) => Poll::Ready(Some(Ok(stream))),
+            Poll::Ready(Err(e)) => Poll::Ready(Some(Err(e))),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+pub fn start_grpc_server_on_unix_socket(
+    socket_path: PathBuf,
+    entry_sender: Arc<Sender<PbEntry>>,
+    exit: Arc<AtomicBool>,
+    shutdown_receiver: Receiver<()>,
+) -> JoinHandle<()> {
+    std::thread::spawn(move || {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+
+        let socket_path_clone = socket_path.clone();
+        let server_handle = runtime.spawn(async move {
+            let _ = std::fs::remove_file(&socket_path_clone);
+            let listener = match UnixListener::bind(&socket_path_clone) {
+                Ok(l) => l,
+                Err(e) => {
+                    error!(
+                        "failed to bind to unix socket {:?}: {}",
+                        socket_path_clone, e
+                    );
+                    return;
+                }
+            };
+            info!("starting server on unix socket {:?}", socket_path_clone);
+
+            let incoming = UnixSocketStream::new(listener);
+            if let Err(e) = tonic::transport::Server::builder()
+                .add_service(ShredstreamProxyServer::new(ShredstreamProxyService {
+                    entry_sender,
+                }))
+                .serve_with_incoming(incoming)
+                .await
+            {
+                debug!("grpc server error: {:?}", e);
+            }
+
+            let _ = std::fs::remove_file(&socket_path_clone);
+            info!("cleaned up unix socket {:?}", socket_path_clone);
+        });
+
+        while !exit.load(std::sync::atomic::Ordering::Relaxed) {
+            if shutdown_receiver
+                .recv_timeout(Duration::from_secs(1))
+                .is_ok()
+            {
+                server_handle.abort();
+                info!("shutting down entries server");
+                break;
+            }
+        }
+    })
+}
+
 #[tonic::async_trait]
 impl ShredstreamProxy for ShredstreamProxyService {
     type SubscribeEntriesStream = ReceiverStream<Result<PbEntry, tonic::Status>>;

@@ -16,6 +16,9 @@ crossbeam-channel = { workspace = true }
 dashmap = { workspace = true }
 env_logger = { workspace = true }
 hostname = { workspace = true }
+http = "1"
+hyper = { version = "1", features = ["client", "http1"] }
+hyper-util = { version = "0.1", features = ["client", "tokio"] }
 itertools = { workspace = true }
 jito-protos = { workspace = true }
 log = { workspace = true }
@@ -37,3 +40,6 @@ solana-streamer = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tonic = { workspace = true }
+tower = "0.4"
+futures-core = "0.3"
+futures-util = "0.3"

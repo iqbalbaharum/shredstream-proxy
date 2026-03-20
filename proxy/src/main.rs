@@ -132,9 +132,14 @@ struct CommonArgs {
     #[arg(long, env, default_value_t = false)]
     debug_trace_shred: bool,
 
-    /// GRPC port for serving decoded shreds as Solana entries
+    /// gRPC port for serving decoded shreds as Solana entries
     #[arg(long, env)]
     grpc_service_port: Option<u16>,
+
+    /// Unix socket path for serving decoded shreds as Solana entries.
+    /// If provided, overrides --grpc-service-port and serves over Unix socket.
+    #[arg(long, env)]
+    grpc_socket_path: Option<PathBuf>,
 
     /// Public IP address to use.
     /// Overrides value fetched from `ifconfig.me`.
@@ -345,8 +350,16 @@ fn main() -> Result<(), ShredstreamProxyError> {
         thread_handles.push(refresh_handle);
     }
 
-    if let Some(port) = args.grpc_service_port {
-        let server_hdl = server::start_server_thread(
+    if args.grpc_socket_path.is_some() {
+        let server_hdl = server::start_grpc_server_on_unix_socket(
+            args.grpc_socket_path.unwrap(),
+            entry_sender.clone(),
+            exit.clone(),
+            shutdown_receiver.clone(),
+        );
+        thread_handles.push(server_hdl);
+    } else if let Some(port) = args.grpc_service_port {
+        let server_hdl = server::start_grpc_server(
             SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port),
             entry_sender.clone(),
             exit.clone(),

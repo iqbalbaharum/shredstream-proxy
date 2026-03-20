@@ -7,6 +7,8 @@ use std::{
 };
 
 use arc_swap::{ArcSwap, ArcSwapAny};
+use http::Uri;
+use hyper_util::rt::TokioIo;
 use jito_protos::auth::{
     auth_service_client::AuthServiceClient, GenerateAuthChallengeRequest,
     GenerateAuthTokensRequest, RefreshAccessTokenRequest, Role, Token,
@@ -15,13 +17,14 @@ use prost_types::Timestamp;
 use solana_metrics::datapoint_info;
 use solana_sdk::signature::{Keypair, Signer};
 use thiserror::Error;
-use tokio::{task::JoinHandle, time::sleep};
+use tokio::{net::UnixStream, task::JoinHandle, time::sleep};
 use tonic::{
     metadata::errors::InvalidMetadataValue,
     service::Interceptor,
     transport::{Channel, Endpoint},
     Request, Status,
 };
+use tower::service_fn;
 
 /// Adds the token to each requests' authorization header.
 #[derive(Debug, Error)]
@@ -219,11 +222,26 @@ impl Interceptor for ClientInterceptor {
 }
 
 pub async fn create_grpc_channel(url: String) -> BlockEngineConnectionResult<Channel> {
-    let endpoint = match url.starts_with("https") {
-        true => Endpoint::from_shared(url)
+    if url.starts_with('/') {
+        let path = url;
+        let channel = Endpoint::try_from("http://[::]:0")
             .map_err(BlockEngineConnectionError::Transport)?
-            .tls_config(tonic::transport::ClientTlsConfig::new().with_enabled_roots())?,
-        false => Endpoint::from_shared(url).map_err(BlockEngineConnectionError::Transport)?,
-    };
-    Ok(endpoint.connect().await?)
+            .connect_with_connector(service_fn(move |_: Uri| {
+                let path = path.clone();
+                async move {
+                    let io = TokioIo::new(UnixStream::connect(path).await?);
+                    Ok::<_, std::io::Error>(io)
+                }
+            }))
+            .await?;
+        Ok(channel)
+    } else {
+        let endpoint = match url.starts_with("https") {
+            true => Endpoint::from_shared(url)
+                .map_err(BlockEngineConnectionError::Transport)?
+                .tls_config(tonic::transport::ClientTlsConfig::new().with_enabled_roots())?,
+            false => Endpoint::from_shared(url).map_err(BlockEngineConnectionError::Transport)?,
+        };
+        Ok(endpoint.connect().await?)
+    }
 }
