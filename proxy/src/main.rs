@@ -142,10 +142,10 @@ struct CommonArgs {
     #[arg(long, env)]
     grpc_socket_path: Option<PathBuf>,
 
-    /// Filter entries to only include pump.fun transactions.
+    /// Filter entries to only include pump.fun and axiom transactions.
     /// Only applicable when gRPC service is enabled.
     #[arg(long, env, default_value_t = false)]
-    filter_pumpfun: bool,
+    smart_filter: bool,
 
     /// Public IP address to use.
     /// Overrides value fetched from `ifconfig.me`.
@@ -315,7 +315,7 @@ fn main() -> Result<(), ShredstreamProxyError> {
         args.num_threads,
         deduper.clone(),
         args.grpc_service_port.is_some() || args.grpc_socket_path.is_some(),
-        args.filter_pumpfun,
+        args.smart_filter,
         entry_sender.clone(),
         args.debug_trace_shred,
         use_discovery_service,
@@ -358,9 +358,11 @@ fn main() -> Result<(), ShredstreamProxyError> {
     }
 
     if args.grpc_socket_path.is_some() {
+        let socket_path = args.grpc_socket_path.unwrap();
         let server_hdl = server::start_grpc_server_on_unix_socket(
-            args.grpc_socket_path.unwrap(),
+            socket_path.clone(),
             entry_sender.clone(),
+            args.smart_filter,
             exit.clone(),
             shutdown_receiver.clone(),
         );
@@ -369,6 +371,7 @@ fn main() -> Result<(), ShredstreamProxyError> {
         let server_hdl = server::start_grpc_server(
             SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port),
             entry_sender.clone(),
+            args.smart_filter,
             exit.clone(),
             shutdown_receiver.clone(),
         );

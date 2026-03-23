@@ -29,11 +29,13 @@ use crate::pumpfun_parser::{ParsedTransaction, PumpFunParser};
 #[derive(Debug, Clone)]
 pub struct ShredstreamProxyService {
     entry_sender: Arc<Sender<PbEntry>>,
+    smart_filter: bool,
 }
 
 pub fn start_grpc_server(
     addr: SocketAddr,
     entry_sender: Arc<Sender<PbEntry>>,
+    smart_filter: bool,
     exit: Arc<AtomicBool>,
     shutdown_receiver: Receiver<()>,
 ) -> JoinHandle<()> {
@@ -45,6 +47,7 @@ pub fn start_grpc_server(
             tonic::transport::Server::builder()
                 .add_service(ShredstreamProxyServer::new(ShredstreamProxyService {
                     entry_sender,
+                    smart_filter,
                 }))
                 .serve(addr)
                 .await
@@ -151,6 +154,7 @@ impl Connected for UnixStreamWrapper {
 pub fn start_grpc_server_on_unix_socket(
     socket_path: PathBuf,
     entry_sender: Arc<Sender<PbEntry>>,
+    smart_filter: bool,
     exit: Arc<AtomicBool>,
     shutdown_receiver: Receiver<()>,
 ) -> JoinHandle<()> {
@@ -176,6 +180,7 @@ pub fn start_grpc_server_on_unix_socket(
             if let Err(e) = tonic::transport::Server::builder()
                 .add_service(ShredstreamProxyServer::new(ShredstreamProxyService {
                     entry_sender,
+                    smart_filter,
                 }))
                 .serve_with_incoming(incoming)
                 .await
@@ -206,13 +211,24 @@ impl ShredstreamProxy for ShredstreamProxyService {
 
     async fn subscribe_entries(
         &self,
-        _request: tonic::Request<SubscribeEntriesRequest>,
+        request: tonic::Request<SubscribeEntriesRequest>,
     ) -> Result<tonic::Response<Self::SubscribeEntriesStream>, tonic::Status> {
+        let smart_filter = request.into_inner().smart_filter;
+        let service_smart_filter = self.smart_filter;
+        let use_smart_filter = smart_filter || service_smart_filter;
+
         let (tx, rx) = tokio::sync::mpsc::channel(100);
         let mut entry_receiver: BroadcastReceiver<PbEntry> = self.entry_sender.subscribe();
 
         tokio::spawn(async move {
             while let Ok(entry) = entry_receiver.recv().await {
+                if use_smart_filter {
+                    let parsed_txs = PumpFunParser::parse_entries(&entry.entries, "all");
+                    if parsed_txs.is_empty() {
+                        continue;
+                    }
+                }
+
                 match tx.send(Ok(entry)).await {
                     Ok(_) => (),
                     Err(_e) => {
