@@ -24,6 +24,8 @@ use tokio::{
 use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::server::Connected;
 
+use crate::pumpfun_parser::{ParsedTransaction, PumpFunParser};
+
 #[derive(Debug, Clone)]
 pub struct ShredstreamProxyService {
     entry_sender: Arc<Sender<PbEntry>>,

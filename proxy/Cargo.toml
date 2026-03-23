@@ -43,3 +43,4 @@ tonic = { workspace = true }
 tower = "0.4"
 futures-core = "0.3"
 futures-util = "0.3"
+lazy_static = "1.4"

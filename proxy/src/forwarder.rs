@@ -53,6 +53,7 @@ pub fn start_forwarder_threads(
     num_threads: Option<usize>,
     deduper: Arc<RwLock<Deduper<2, [u8]>>>,
     should_reconstruct_shreds: bool,
+    filter_pumpfun: bool,
     entry_sender: Arc<Sender<PbEntry>>,
     debug_trace_shred: bool,
     use_discovery_service: bool,
@@ -83,6 +84,7 @@ pub fn start_forwarder_threads(
     if should_reconstruct_shreds {
         let metrics = metrics.clone();
         let exit = exit.clone();
+        let filter_pumpfun = filter_pumpfun;
         // receives shreds from recv_from_channel_and_send_multiple_dest and calls deshred::reconstruct_shreds
         let hdl = std::thread::Builder::new()
             .name("shred_reconstructor".to_string())

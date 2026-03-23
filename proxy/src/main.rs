@@ -38,6 +38,7 @@ mod deshred;
 pub mod forwarder;
 mod heartbeat;
 mod multicast_config;
+mod pumpfun_parser;
 mod server;
 mod token_authenticator;
 
@@ -140,6 +141,11 @@ struct CommonArgs {
     /// If provided, overrides --grpc-service-port and serves over Unix socket.
     #[arg(long, env)]
     grpc_socket_path: Option<PathBuf>,
+
+    /// Filter entries to only include pump.fun transactions.
+    /// Only applicable when gRPC service is enabled.
+    #[arg(long, env, default_value_t = false)]
+    filter_pumpfun: bool,
 
     /// Public IP address to use.
     /// Overrides value fetched from `ifconfig.me`.
@@ -309,6 +315,7 @@ fn main() -> Result<(), ShredstreamProxyError> {
         args.num_threads,
         deduper.clone(),
         args.grpc_service_port.is_some() || args.grpc_socket_path.is_some(),
+        args.filter_pumpfun,
         entry_sender.clone(),
         args.debug_trace_shred,
         use_discovery_service,
