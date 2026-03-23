@@ -38,6 +38,7 @@ mod deshred;
 pub mod forwarder;
 mod heartbeat;
 mod multicast_config;
+mod pumpfun_filter;
 mod pumpfun_parser;
 mod server;
 mod token_authenticator;

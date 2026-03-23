@@ -25,6 +25,7 @@ use tokio::{
 use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::server::Connected;
 
+use crate::pumpfun_filter::PumpFunFilter;
 use crate::pumpfun_parser::{Origin, ParsedTransaction, PumpFunParser, TradeType};
 
 #[derive(Debug, Clone)]
@@ -226,8 +227,7 @@ impl ShredstreamProxy for ShredstreamProxyService {
         tokio::spawn(async move {
             while let Ok(entry) = entry_receiver.recv().await {
                 if use_smart_filter {
-                    let parsed_txs = PumpFunParser::parse_entries(&entry.entries, "all");
-                    if parsed_txs.is_empty() {
+                    if PumpFunFilter::filter_entries(&entry.entries).is_none() {
                         continue;
                     }
                 }

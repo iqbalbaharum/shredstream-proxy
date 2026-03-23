@@ -1,6 +1,8 @@
 use log::debug;
 use solana_entry::entry::Entry;
+use solana_sdk::pubkey::Pubkey;
 use solana_sdk::transaction::VersionedTransaction;
+use std::sync::LazyLock;
 
 const PUMP_BUY_DISCRIMINATOR: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
 const PUMP_SELL_DISCRIMINATOR: [u8; 8] = [51, 230, 133, 164, 1, 127, 131, 173];
@@ -8,7 +10,17 @@ const PUMP_EXACT_IN_DISCRIMINATOR: [u8; 8] = [56, 252, 116, 8, 158, 223, 205, 95
 const PUMP_CREATE_V2_DISCRIMINATOR: [u8; 8] = [214, 144, 76, 236, 95, 139, 49, 180];
 const PUMP_CREATE_DISCRIMINATOR: [u8; 8] = [24, 30, 200, 40, 5, 28, 7, 119];
 
-const AXIOM_PROGRAM_ID: &str = "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9";
+const PUMP_BUY_DISCRIMINATORS: [[u8; 8]; 5] = [
+    PUMP_BUY_DISCRIMINATOR,
+    PUMP_SELL_DISCRIMINATOR,
+    PUMP_EXACT_IN_DISCRIMINATOR,
+    PUMP_CREATE_V2_DISCRIMINATOR,
+    PUMP_CREATE_DISCRIMINATOR,
+];
+
+const AXIOM_PROGRAM_ID_STR: &str = "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9";
+
+static AXIOM_PROGRAM_ID: LazyLock<Pubkey> = LazyLock::new(|| AXIOM_PROGRAM_ID_STR.parse().unwrap());
 
 pub struct PumpFunFilter;
 
@@ -72,7 +84,7 @@ impl PumpFunFilter {
                     continue;
                 };
 
-            if program_id.to_string() != AXIOM_PROGRAM_ID {
+            if *program_id != *AXIOM_PROGRAM_ID {
                 continue;
             }
 
@@ -96,10 +108,6 @@ impl PumpFunFilter {
     }
 
     fn is_pumpfun_discriminator(discriminator: &[u8]) -> bool {
-        discriminator == PUMP_BUY_DISCRIMINATOR
-            || discriminator == PUMP_SELL_DISCRIMINATOR
-            || discriminator == PUMP_EXACT_IN_DISCRIMINATOR
-            || discriminator == PUMP_CREATE_V2_DISCRIMINATOR
-            || discriminator == PUMP_CREATE_DISCRIMINATOR
+        PUMP_BUY_DISCRIMINATORS.iter().any(|d| d == discriminator)
     }
 }

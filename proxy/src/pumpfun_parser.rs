@@ -2,13 +2,18 @@ use log::debug;
 use solana_entry::entry::Entry;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::transaction::VersionedTransaction;
+use std::sync::LazyLock;
 
 const PUMP_BUY_DISCRIMINATOR: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
 const PUMP_SELL_DISCRIMINATOR: [u8; 8] = [51, 230, 133, 164, 1, 127, 131, 173];
 const PUMP_EXACT_IN_DISCRIMINATOR: [u8; 8] = [56, 252, 116, 8, 158, 223, 205, 95];
 
-const PUMPFUN_PROGRAM_ID: &str = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
-const AXIOM_PROGRAM_ID: &str = "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9";
+const PUMPFUN_PROGRAM_ID_STR: &str = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
+const AXIOM_PROGRAM_ID_STR: &str = "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9";
+
+static PUMPFUN_PROGRAM_ID: LazyLock<Pubkey> =
+    LazyLock::new(|| PUMPFUN_PROGRAM_ID_STR.parse().unwrap());
+static AXIOM_PROGRAM_ID: LazyLock<Pubkey> = LazyLock::new(|| AXIOM_PROGRAM_ID_STR.parse().unwrap());
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TradeType {
@@ -96,7 +101,7 @@ impl PumpFunParser {
             let program_id = account_keys.get(instruction.program_id_index as usize)?;
             let data = &instruction.data;
 
-            if program_id.to_string() == PUMPFUN_PROGRAM_ID {
+            if *program_id == *PUMPFUN_PROGRAM_ID {
                 if filter == "axiom" {
                     continue;
                 }
@@ -125,7 +130,7 @@ impl PumpFunParser {
                 }
             }
 
-            if program_id.to_string() == AXIOM_PROGRAM_ID {
+            if *program_id == *AXIOM_PROGRAM_ID {
                 if filter == "pumpfun" {
                     continue;
                 }
