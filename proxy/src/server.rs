@@ -11,11 +11,11 @@ use std::{
 
 use crossbeam_channel::Receiver;
 use futures_core::Stream;
-use jito_protos::shredstream::{
+use log::{debug, error, info};
+use sol_protos::shredstream::{
     shredstream_proxy_server::{ShredstreamProxy, ShredstreamProxyServer},
     Entry as PbEntry, SubscribeEntriesRequest,
 };
-use log::{debug, error, info};
 use std::sync::Arc as StdArc;
 use tokio::{
     net::UnixListener,

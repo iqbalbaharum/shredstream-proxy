@@ -1,9 +1,9 @@
 use std::{collections::HashSet, hash::Hash, sync::atomic::Ordering};
 
 use itertools::Itertools;
-use jito_protos::shredstream::TraceShred;
 use log::{debug, warn};
 use prost::Message;
+use sol_protos::shredstream::TraceShred;
 use solana_ledger::{
     blockstore::MAX_DATA_SHREDS_PER_SLOT,
     shred::{

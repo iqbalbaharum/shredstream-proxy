@@ -9,11 +9,11 @@ use std::{
 use arc_swap::{ArcSwap, ArcSwapAny};
 use http::Uri;
 use hyper_util::rt::TokioIo;
-use jito_protos::auth::{
+use prost_types::Timestamp;
+use sol_protos::auth::{
     auth_service_client::AuthServiceClient, GenerateAuthChallengeRequest,
     GenerateAuthTokensRequest, RefreshAccessTokenRequest, Role, Token,
 };
-use prost_types::Timestamp;
 use solana_metrics::datapoint_info;
 use solana_sdk::signature::{Keypair, Signer};
 use thiserror::Error;

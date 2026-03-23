@@ -1642,7 +1642,7 @@ name = "examples"
 version = "0.0.0"
 dependencies = [
  "bincode",
- "jito-protos",
+ "sol-protos",
  "solana-entry 2.2.1",
  "tokio",
 ]
@@ -2745,17 +2745,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "jito-protos"
-version = "0.2.13"
-dependencies = [
- "prost 0.13.5",
- "prost-types 0.13.5",
- "protobuf-src",
- "tonic 0.13.1",
- "tonic-build 0.13.1",
-]
-
-[[package]]
 name = "jito-shredstream-proxy"
 version = "0.2.13"
 dependencies = [
@@ -2774,7 +2763,7 @@ dependencies = [
  "hyper 1.6.0",
  "hyper-util",
  "itertools 0.14.0",
- "jito-protos",
+ "lazy_static",
  "log",
  "prost 0.13.5",
  "prost-types 0.13.5",
@@ -2783,6 +2772,7 @@ dependencies = [
  "serde",
  "serde_json",
  "signal-hook",
+ "sol-protos",
  "solana-client",
  "solana-entry 2.2.1",
  "solana-ledger",
@@ -4871,6 +4861,17 @@ checksum = "c970269d99b64e60ec3bd6ad27270092a5394c4e309314b18ae3fe575695fbe8"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "sol-protos"
+version = "0.2.13"
+dependencies = [
+ "prost 0.13.5",
+ "prost-types 0.13.5",
+ "protobuf-src",
+ "tonic 0.13.1",
+ "tonic-build 0.13.1",
 ]
 
 [[package]]

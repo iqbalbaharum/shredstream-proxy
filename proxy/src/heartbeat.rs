@@ -9,11 +9,11 @@ use std::{
 };
 
 use crossbeam_channel::Receiver;
-use jito_protos::{
-    auth::{auth_service_client::AuthServiceClient, Role},
-    shredstream::{shredstream_client::ShredstreamClient, Heartbeat},
-};
 use log::{info, warn};
+use sol_protos::{
+    auth::{auth_service_client::AuthServiceClient, Role},
+    shredstream::{shredstream_client::ShredstreamClient, ShredstreamHeartbeat as Heartbeat},
+};
 use solana_metrics::{datapoint_info, datapoint_warn};
 use solana_sdk::signature::Keypair;
 use tokio::runtime::Runtime;
@@ -66,7 +66,7 @@ pub fn heartbeat_loop_thread(
     exit: Arc<AtomicBool>,
 ) -> JoinHandle<()> {
     Builder::new().name("ssPxyHbeatLoop".to_string()).spawn(move || {
-        let heartbeat_socket = jito_protos::shared::Socket {
+        let heartbeat_socket = sol_protos::shredstream::ShredstreamSocket {
             ip: recv_socket.ip().to_string(),
             port: recv_socket.port() as i64,
         };
