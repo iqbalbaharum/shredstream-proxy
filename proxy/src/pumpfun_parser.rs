@@ -82,6 +82,11 @@ impl PumpFunParser {
         filter: &str,
     ) -> Option<ParsedTransaction> {
         let account_keys = transaction.message.static_account_keys();
+        let signature = transaction
+            .signatures
+            .get(0)
+            .map(|s| s.as_ref().to_vec())
+            .unwrap_or_default();
 
         for instruction in transaction.message.instructions() {
             if instruction.data.len() < 8 {
@@ -108,7 +113,7 @@ impl PumpFunParser {
 
                     return Some(ParsedTransaction {
                         slot: 0,
-                        signature: vec![],
+                        signature,
                         mint,
                         signer,
                         trade_type,
@@ -151,7 +156,7 @@ impl PumpFunParser {
 
                     return Some(ParsedTransaction {
                         slot: 0,
-                        signature: vec![],
+                        signature,
                         mint,
                         signer,
                         trade_type,
