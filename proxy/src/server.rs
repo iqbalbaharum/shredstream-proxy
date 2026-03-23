@@ -14,7 +14,8 @@ use futures_core::Stream;
 use log::{debug, error, info};
 use sol_protos::shredstream::{
     shredstream_proxy_server::{ShredstreamProxy, ShredstreamProxyServer},
-    Entry as PbEntry, SubscribeEntriesRequest,
+    Entry as PbEntry, Origin as ProtoOrigin, ParsedTransaction as PbParsedTransaction,
+    SubscribeEntriesRequest, SubscribeParsedRequest, TradeType as ProtoTradeType,
 };
 use std::sync::Arc as StdArc;
 use tokio::{
@@ -24,7 +25,7 @@ use tokio::{
 use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::server::Connected;
 
-use crate::pumpfun_parser::{ParsedTransaction, PumpFunParser};
+use crate::pumpfun_parser::{Origin, ParsedTransaction, PumpFunParser, TradeType};
 
 #[derive(Debug, Clone)]
 pub struct ShredstreamProxyService {
@@ -208,6 +209,8 @@ pub fn start_grpc_server_on_unix_socket(
 #[tonic::async_trait]
 impl ShredstreamProxy for ShredstreamProxyService {
     type SubscribeEntriesStream = ReceiverStream<Result<PbEntry, tonic::Status>>;
+    type SubscribeParsedTransactionsStream =
+        ReceiverStream<Result<PbParsedTransaction, tonic::Status>>;
 
     async fn subscribe_entries(
         &self,
@@ -240,5 +243,62 @@ impl ShredstreamProxy for ShredstreamProxyService {
         });
 
         Ok(tonic::Response::new(ReceiverStream::new(rx)))
+    }
+
+    async fn subscribe_parsed_transactions(
+        &self,
+        request: tonic::Request<SubscribeParsedRequest>,
+    ) -> Result<tonic::Response<Self::SubscribeParsedTransactionsStream>, tonic::Status> {
+        let filter = request.into_inner().filter;
+        let (tx, rx) = tokio::sync::mpsc::channel(100);
+        let mut entry_receiver: BroadcastReceiver<PbEntry> = self.entry_sender.subscribe();
+
+        tokio::spawn(async move {
+            while let Ok(entry) = entry_receiver.recv().await {
+                let parsed_txs = PumpFunParser::parse_entries(&entry.entries, &filter);
+
+                for parsed_tx in parsed_txs {
+                    let pb_tx = convert_to_proto(&parsed_tx, entry.slot);
+                    match tx.send(Ok(pb_tx)).await {
+                        Ok(_) => (),
+                        Err(_e) => {
+                            debug!("client disconnected");
+                            return;
+                        }
+                    }
+                }
+            }
+        });
+
+        Ok(tonic::Response::new(ReceiverStream::new(rx)))
+    }
+}
+
+fn convert_to_proto(tx: &ParsedTransaction, slot: u64) -> PbParsedTransaction {
+    let trade_type = match tx.trade_type {
+        TradeType::Unknown => ProtoTradeType::Unknown as i32,
+        TradeType::PumpfunBuy => ProtoTradeType::PumpfunBuy as i32,
+        TradeType::PumpfunSell => ProtoTradeType::PumpfunSell as i32,
+        TradeType::PumpfunBuyExactIn => ProtoTradeType::PumpfunBuyExactIn as i32,
+        TradeType::AxiomBuy => ProtoTradeType::AxiomBuy as i32,
+        TradeType::AxiomSell => ProtoTradeType::AxiomSell as i32,
+    };
+
+    let origin = match tx.origin {
+        Origin::Unspecified => ProtoOrigin::Unspecified as i32,
+        Origin::Pumpfun => ProtoOrigin::Pumpfun as i32,
+        Origin::Axiom => ProtoOrigin::Axiom as i32,
+    };
+
+    PbParsedTransaction {
+        slot,
+        signature: tx.signature.clone(),
+        mint: tx.mint.clone(),
+        signer: tx.signer.clone(),
+        trade_type,
+        origin,
+        token_amount: tx.token_amount,
+        sol_amount: tx.sol_amount,
+        timestamp: tx.timestamp,
     }
 }
