@@ -17,6 +17,7 @@ use sol_protos::shredstream::{
     Entry as PbEntry, Origin as ProtoOrigin, ParsedTransaction as PbParsedTransaction,
     SubscribeEntriesRequest, SubscribeParsedRequest, TradeType as ProtoTradeType,
 };
+use solana_sdk::signature::Signature;
 use std::sync::Arc as StdArc;
 use tokio::{
     net::UnixListener,
@@ -292,7 +293,7 @@ fn convert_to_proto(tx: &ParsedTransaction, slot: u64) -> PbParsedTransaction {
 
     PbParsedTransaction {
         slot,
-        signature: base58::encode(&tx.signature),
+        signature: Signature(&tx.signature).to_string(),
         mint: tx.mint.clone(),
         signer: tx.signer.clone(),
         trade_type,
