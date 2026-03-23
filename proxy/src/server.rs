@@ -292,7 +292,7 @@ fn convert_to_proto(tx: &ParsedTransaction, slot: u64) -> PbParsedTransaction {
 
     PbParsedTransaction {
         slot,
-        signature: tx.signature.clone(),
+        signature: base58::encode(&tx.signature),
         mint: tx.mint.clone(),
         signer: tx.signer.clone(),
         trade_type,
