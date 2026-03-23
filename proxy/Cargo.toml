@@ -20,7 +20,8 @@ http = "1"
 hyper = { version = "1", features = ["client", "http1"] }
 hyper-util = { version = "0.1", features = ["client", "tokio"] }
 itertools = { workspace = true }
-jito-protos = { workspace = true }
+jito-protos = { path = "../jito_protos" }
+sol-protos = { path = "../sol_protos" }
 log = { workspace = true }
 prost = { workspace = true }
 prost-types = { workspace = true }

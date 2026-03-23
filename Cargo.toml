@@ -1,10 +1,10 @@
 [workspace]
-members = ["examples", "jito_protos", "proxy"]
+members = ["examples", "jito_protos", "sol_protos", "proxy"]
 resolver = "2"
 
 [workspace.package]
 version = "0.2.13"
-description = "Fast path to receive shreds from Jito, forwarding to local consumers. See https://docs.jito.wtf/lowlatencytxnfeed/ for details."
+description = "Fast path to receive shreds from Jito, forwarding to local consumers. See https://docs.jito.wtf/lowlatencytxnfeed/ details."
 authors = ["Jito Team <team@jito.wtf>"]
 homepage = "https://jito.wtf/"
 edition = "2021"
@@ -21,6 +21,7 @@ env_logger = "0.11"
 hostname = "0.4.0"
 itertools = "0.14.0"
 jito-protos = { path = "jito_protos" }
+sol-protos = { path = "sol_protos" }
 log = "0.4"
 prost = "0.13"
 prost-types = "0.13"
