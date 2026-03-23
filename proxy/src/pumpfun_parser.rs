@@ -42,7 +42,7 @@ impl From<Origin> for i32 {
 #[derive(Debug, Clone)]
 pub struct ParsedTransaction {
     pub slot: u64,
-    pub signature: Vec<u8>,
+    pub signature: String,
     pub mint: String,
     pub signer: String,
     pub trade_type: TradeType,
@@ -85,7 +85,7 @@ impl PumpFunParser {
         let signature = transaction
             .signatures
             .get(0)
-            .map(|s| s.as_ref().to_vec())
+            .map(|s| s.to_string())
             .unwrap_or_default();
 
         for instruction in transaction.message.instructions() {
