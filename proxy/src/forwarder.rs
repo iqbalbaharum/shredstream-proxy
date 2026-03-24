@@ -6,7 +6,7 @@ use std::{
         Arc, RwLock,
     },
     thread::{Builder, JoinHandle},
-    time::{Duration, SystemTime},
+    time::{Duration, Instant, SystemTime},
 };
 
 use arc_swap::ArcSwap;
@@ -115,8 +115,17 @@ pub fn start_forwarder_threads(
                                 &metrics,
                             );
 
+                            let entry_gen_time = Instant::now();
                             deshredded_entries.drain(..).for_each(
                                 |(slot, _entries, entries_bytes)| {
+                                    let entry_receive_latency =
+                                        entry_gen_time.elapsed().as_millis() as i64;
+                                    datapoint_info!(
+                                        "shredstream_proxy-entry_timing",
+                                        ("slot", slot as i64, i64),
+                                        ("entry_gen_latency_ms", entry_receive_latency, i64),
+                                    );
+
                                     let _ = entry_sender.send(PbEntry {
                                         slot,
                                         entries: entries_bytes,
