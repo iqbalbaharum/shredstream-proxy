@@ -263,12 +263,7 @@ impl ShredstreamProxy for ShredstreamProxyService {
                     let pb_tx = convert_to_proto(&parsed_tx, entry.slot);
 
                     match tx.send(Ok(pb_tx)).await {
-                        Ok(_) => {
-                            info!(
-                                "[TRACKING][SENT_TO_CLIENT] slot={} signature={}",
-                                slot, parsed_tx.signature
-                            );
-                        }
+                        Ok(_) => {}
                         Err(_e) => {
                             debug!("client disconnected");
                             return;
