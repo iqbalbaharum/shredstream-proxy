@@ -1,8 +1,9 @@
-use log::debug;
+use log::{debug, info};
 use solana_entry::entry::Entry;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::transaction::VersionedTransaction;
-use std::sync::LazyLock;
+use std::collections::HashMap;
+use std::sync::{Arc, LazyLock, RwLock};
 
 const PUMP_BUY_DISCRIMINATOR: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
 const PUMP_SELL_DISCRIMINATOR: [u8; 8] = [51, 230, 133, 164, 1, 127, 131, 173];
@@ -11,9 +12,103 @@ const PUMP_EXACT_IN_DISCRIMINATOR: [u8; 8] = [56, 252, 116, 8, 158, 223, 205, 95
 const PUMPFUN_PROGRAM_ID_STR: &str = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
 const AXIOM_PROGRAM_ID_STR: &str = "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9";
 
+// Known Address Lookup Table addresses for platforms
+const AXIOM_ALT_STR: &str = "7RKtfATWCe98ChuwecNq8XCzAzfoK3DtZTprFsPMGtio";
+
 static PUMPFUN_PROGRAM_ID: LazyLock<Pubkey> =
     LazyLock::new(|| PUMPFUN_PROGRAM_ID_STR.parse().unwrap());
 static AXIOM_PROGRAM_ID: LazyLock<Pubkey> = LazyLock::new(|| AXIOM_PROGRAM_ID_STR.parse().unwrap());
+static AXIOM_ALT: LazyLock<Pubkey> = LazyLock::new(|| AXIOM_ALT_STR.parse().unwrap());
+
+// Cache for known lookup tables (ALT address -> list of resolved addresses)
+static KNOWN_ALT_CACHE: LazyLock<Arc<RwLock<HashMap<Pubkey, Vec<Pubkey>>>>> =
+    LazyLock::new(|| Arc::new(RwLock::new(HashMap::new())));
+
+pub fn init_lookup_tables(rpc_url: &str) {
+    let mut cache = KNOWN_ALT_CACHE.write().unwrap();
+
+    // Fetch known ALT from RPC
+    let alt_addresses = vec![*AXIOM_ALT];
+
+    for alt in alt_addresses {
+        match fetch_address_lookup_table(rpc_url, alt) {
+            Ok(addresses) => {
+                info!("Fetched ALT {} with {} addresses", alt, addresses.len());
+                cache.insert(alt, addresses);
+            }
+            Err(e) => {
+                debug!("Failed to fetch ALT {}: {}", alt, e);
+            }
+        }
+    }
+
+    info!(
+        "Lookup table initialization complete, {} ALTs loaded",
+        cache.len()
+    );
+}
+
+fn fetch_address_lookup_table(rpc_url: &str, alt: Pubkey) -> Result<Vec<Pubkey>, String> {
+    let client = reqwest::blocking::Client::new();
+
+    let request_body = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "getAccountInfo",
+        "params": [
+            alt.to_string(),
+            {
+                "encoding": "base64"
+            }
+        ]
+    });
+
+    let response = client
+        .post(rpc_url)
+        .header("Content-Type", "application/json")
+        .json(&request_body)
+        .send()
+        .map_err(|e| e.to_string())?;
+
+    if !response.status().is_success() {
+        return Err(format!("HTTP error: {}", response.status()));
+    }
+
+    let json: serde_json::Value = response.json().map_err(|e| e.to_string())?;
+
+    if let Some(error) = json.get("error") {
+        return Err(format!("RPC error: {}", error));
+    }
+
+    let data = json["result"]["value"]["data"]
+        .as_str()
+        .ok_or("No data in response")?;
+
+    // Decode base64
+    let decoded = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, data)
+        .map_err(|e| e.to_string())?;
+
+    // Parse as AddressLookupTable
+    // First 40 bytes: header (discriminator + authority + deprecated)
+    // Then: num_addresses as u32, then the addresses
+    if decoded.len() < 44 {
+        return Err("ALT data too short".to_string());
+    }
+
+    let num_addresses = u32::from_le_bytes(decoded[40..44].try_into().unwrap()) as usize;
+    let mut addresses = Vec::with_capacity(num_addresses);
+
+    for i in 0..num_addresses {
+        let offset = 44 + (i * 32);
+        if offset + 32 > decoded.len() {
+            break;
+        }
+        let pubkey_bytes: [u8; 32] = decoded[offset..offset + 32].try_into().unwrap();
+        addresses.push(Pubkey::new_from_array(pubkey_bytes));
+    }
+
+    Ok(addresses)
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TradeType {
@@ -86,6 +181,12 @@ impl PumpFunParser {
         transaction: &VersionedTransaction,
         filter: &str,
     ) -> Option<ParsedTransaction> {
+        // Check for address table lookups - skip if unknown ALT
+        if Self::has_unknown_alt(&transaction) {
+            debug!("Skipping transaction with unknown address lookup table");
+            return None;
+        }
+
         let account_keys = transaction.message.static_account_keys();
         let signature = transaction.signatures.get(0)?.to_string();
 
@@ -204,5 +305,28 @@ impl PumpFunParser {
             }
         }
         None
+    }
+
+    fn has_unknown_alt(transaction: &VersionedTransaction) -> bool {
+        // Check if transaction has address table lookups
+        let address_table_lookups = match transaction.message.address_table_lookups() {
+            Some(lookups) => lookups,
+            None => return false, // No ALTs - safe to process
+        };
+
+        // If no ALTs, safe to process
+        if address_table_lookups.is_empty() {
+            return false;
+        }
+
+        // Check if all ALTs are known
+        let cache = KNOWN_ALT_CACHE.read().unwrap();
+        for lookup in address_table_lookups {
+            if !cache.contains_key(&lookup.account_key) {
+                return true; // Unknown ALT found
+            }
+        }
+
+        false // All ALTs are known
     }
 }

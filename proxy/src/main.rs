@@ -32,7 +32,7 @@ use tonic::Status;
 
 use crate::{
     forwarder::ShredMetrics, multicast_config::create_multicast_socket_on_device,
-    token_authenticator::BlockEngineConnectionError,
+    pumpfun_parser::init_lookup_tables, token_authenticator::BlockEngineConnectionError,
 };
 mod deshred;
 pub mod forwarder;
@@ -143,6 +143,11 @@ struct CommonArgs {
     #[arg(long, env)]
     grpc_socket_path: Option<PathBuf>,
 
+    /// RPC URL for fetching address lookup tables on startup.
+    /// Example: https://api.mainnet-beta.solana.com
+    #[arg(long, env)]
+    rpc_url: Option<String>,
+
     /// Filter entries to only include pump.fun and axiom transactions.
     /// Only applicable when gRPC service is enabled.
     #[arg(long, env, default_value_t = false)]
@@ -249,6 +254,11 @@ fn main() -> Result<(), ShredstreamProxyError> {
         && args.dest_ip_ports.is_empty()
     {
         return Err(ShredstreamProxyError::IoError(io::Error::new(ErrorKind::InvalidInput, "No destinations found. You must provide values for --dest-ip-ports or --endpoint-discovery-url.")));
+    }
+
+    // Initialize lookup tables if RPC URL provided
+    if let Some(ref rpc_url) = args.rpc_url {
+        init_lookup_tables(rpc_url);
     }
 
     let exit = Arc::new(AtomicBool::new(false));
