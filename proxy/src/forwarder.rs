@@ -35,6 +35,7 @@ use tokio::sync::broadcast::Sender;
 use crate::{
     deshred,
     deshred::{ComparableShred, ShredsStateTracker},
+    pumpfun_parser::{AXIOM_PROGRAM_ID, PUMPFUN_PROGRAM_ID},
     resolve_hostname_port, ShredstreamProxyError,
 };
 
@@ -117,21 +118,34 @@ pub fn start_forwarder_threads(
 
                             deshredded_entries.drain(..).for_each(
                                 |(slot, entries, entries_bytes)| {
-                                    let tx_sigs: Vec<String> = entries
-                                        .iter()
-                                        .flat_map(|e| e.transactions.iter())
-                                        .flat_map(|t| t.signatures.iter())
-                                        .map(|s| s.to_string())
-                                        .take(20)
-                                        .collect();
+                                    let has_pumpfun_or_axiom = entries.iter().any(|e| {
+                                        e.transactions.iter().any(|t| {
+                                            t.message.instructions().iter().any(|ix| {
+                                                t.message.static_account_keys()
+                                                    .get(ix.program_id_index as usize)
+                                                    .map(|pid| *pid == *PUMPFUN_PROGRAM_ID || *pid == *AXIOM_PROGRAM_ID)
+                                                    .unwrap_or(false)
+                                            })
+                                        })
+                                    });
 
-                                    info!(
-                                        "[TRACKING][ENTRY_RECEIVED] slot={} num_entries={} tx_count={} sigs={:?}",
-                                        slot,
-                                        entries.len(),
-                                        tx_sigs.len(),
-                                        tx_sigs
-                                    );
+                                    if has_pumpfun_or_axiom {
+                                        let tx_sigs: Vec<String> = entries
+                                            .iter()
+                                            .flat_map(|e| e.transactions.iter())
+                                            .flat_map(|t| t.signatures.iter())
+                                            .map(|s| s.to_string())
+                                            .take(20)
+                                            .collect();
+
+                                        info!(
+                                            "[TRACKING][ENTRY_RECEIVED] slot={} num_entries={} tx_count={} sigs={:?}",
+                                            slot,
+                                            entries.len(),
+                                            tx_sigs.len(),
+                                            tx_sigs
+                                        );
+                                    }
 
                                     let _ = entry_sender.send(PbEntry {
                                         slot,

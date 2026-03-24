@@ -15,9 +15,10 @@ const AXIOM_PROGRAM_ID_STR: &str = "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9
 // Known Address Lookup Table addresses for platforms
 const AXIOM_ALT_STR: &str = "7RKtfATWCe98ChuwecNq8XCzAzfoK3DtZTprFsPMGtio";
 
-static PUMPFUN_PROGRAM_ID: LazyLock<Pubkey> =
+pub static PUMPFUN_PROGRAM_ID: LazyLock<Pubkey> =
     LazyLock::new(|| PUMPFUN_PROGRAM_ID_STR.parse().unwrap());
-static AXIOM_PROGRAM_ID: LazyLock<Pubkey> = LazyLock::new(|| AXIOM_PROGRAM_ID_STR.parse().unwrap());
+pub static AXIOM_PROGRAM_ID: LazyLock<Pubkey> =
+    LazyLock::new(|| AXIOM_PROGRAM_ID_STR.parse().unwrap());
 static AXIOM_ALT: LazyLock<Pubkey> = LazyLock::new(|| AXIOM_ALT_STR.parse().unwrap());
 
 // Cache for known lookup tables (ALT address -> list of resolved addresses)
