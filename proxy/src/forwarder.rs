@@ -126,7 +126,7 @@ pub fn start_forwarder_threads(
                                         .collect();
 
                                     info!(
-                                        "[ENTRY_RECEIVED] slot={} num_entries={} tx_count={} sigs={:?}",
+                                        "[TRACKING][ENTRY_RECEIVED] slot={} num_entries={} tx_count={} sigs={:?}",
                                         slot,
                                         entries.len(),
                                         tx_sigs.len(),

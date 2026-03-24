@@ -261,7 +261,7 @@ impl ShredstreamProxy for ShredstreamProxyService {
 
                 for parsed_tx in parsed_txs {
                     info!(
-                        "[PARSED] slot={} signature={} origin={:?} trade_type={:?}",
+                        "[TRACKING][PARSED] slot={} signature={} origin={:?} trade_type={:?}",
                         slot, parsed_tx.signature, parsed_tx.origin, parsed_tx.trade_type
                     );
 
@@ -270,7 +270,7 @@ impl ShredstreamProxy for ShredstreamProxyService {
                     match tx.send(Ok(pb_tx)).await {
                         Ok(_) => {
                             info!(
-                                "[SENT_TO_CLIENT] slot={} signature={}",
+                                "[TRACKING][SENT_TO_CLIENT] slot={} signature={}",
                                 slot, parsed_tx.signature
                             );
                         }
