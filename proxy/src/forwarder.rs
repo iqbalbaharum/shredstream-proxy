@@ -79,10 +79,7 @@ pub fn start_forwarder_threads(
         panic!("Failed to bind listener sockets. Check that port {src_port} is not in use.")
     });
 
-    let (reconstruct_tx, reconstruct_rx): (
-        crossbeam_channel::Sender<(Instant, PacketBatch)>,
-        crossbeam_channel::Receiver<(Instant, PacketBatch)>,
-    ) = crossbeam_channel::bounded(1_024);
+    let (reconstruct_tx, reconstruct_rx) = crossbeam_channel::bounded(1_024);
     let mut thread_hdls = Vec::with_capacity(num_threads + 1);
 
     if should_reconstruct_shreds {
@@ -108,7 +105,7 @@ pub fn start_forwarder_threads(
 
                 while !exit.load(Ordering::Relaxed) {
                     match reconstruct_rx.recv_timeout(Duration::from_millis(100)) {
-                        Ok((packet_receive_time, pkt_batch)) => {
+                        Ok(pkt_batch) => {
                             deshred::reconstruct_shreds(
                                 pkt_batch,
                                 &mut all_shreds,
@@ -119,7 +116,6 @@ pub fn start_forwarder_threads(
                                 &metrics,
                             );
 
-                            let packet_recv_time = packet_receive_time;
                             deshredded_entries.drain(..).for_each(
                                 |(slot, entries, entries_bytes)| {
                                     let has_pumpfun_or_axiom = entries.iter().any(|e| {
@@ -142,14 +138,11 @@ pub fn start_forwarder_threads(
                                             .take(20)
                                             .collect();
 
-                                        let latency_ms = packet_recv_time.elapsed().as_millis() as i64;
-
                                         info!(
-                                            "[TRACKING][ENTRY_RECEIVED] slot={} num_entries={} tx_count={} latency_ms={} sigs={:?}",
+                                            "[TRACKING][ENTRY_RECEIVED] slot={} num_entries={} tx_count={} sigs={:?}",
                                             slot,
                                             entries.len(),
                                             tx_sigs.len(),
-                                            latency_ms,
                                             tx_sigs
                                         );
                                     }
@@ -260,7 +253,7 @@ fn recv_from_channel_and_send_multiple_dest(
     send_socket: &UdpSocket,
     local_dest_sockets: &[SocketAddr],
     should_reconstruct_shreds: bool,
-    reconstruct_tx: &crossbeam_channel::Sender<(Instant, PacketBatch)>,
+    reconstruct_tx: &crossbeam_channel::Sender<PacketBatch>,
     debug_trace_shred: bool,
     metrics: &ShredMetrics,
 ) -> Result<(), ShredstreamProxyError> {
@@ -276,8 +269,7 @@ fn recv_from_channel_and_send_multiple_dest(
     );
 
     if should_reconstruct_shreds {
-        let receive_time = Instant::now();
-        let _ = reconstruct_tx.try_send((receive_time, packet_batch.clone()));
+        let _ = reconstruct_tx.try_send(packet_batch.clone());
     }
 
     let mut packet_batch_vec = vec![packet_batch];
@@ -722,10 +714,7 @@ mod tests {
                 thread::spawn(move || listen_and_collect(socket, to_receive));
             });
 
-        let (reconstruct_tx, _reconstruct_rx): (
-            crossbeam_channel::Sender<(Instant, PacketBatch)>,
-            _,
-        ) = crossbeam_channel::bounded(10_240);
+        let (reconstruct_tx, _reconstruct_rx) = crossbeam_channel::bounded(10_240);
         // send packets
         recv_from_channel_and_send_multiple_dest(
             packet_receiver.recv(),
