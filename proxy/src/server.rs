@@ -6,7 +6,7 @@ use std::{
     sync::{atomic::AtomicBool, Arc},
     task::{Context, Poll},
     thread::JoinHandle,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use crossbeam_channel::Receiver;
@@ -17,7 +17,6 @@ use sol_protos::shredstream::{
     Entry as PbEntry, Origin as ProtoOrigin, ParsedTransaction as PbParsedTransaction,
     SubscribeEntriesRequest, SubscribeParsedRequest, TradeType as ProtoTradeType,
 };
-use solana_metrics::datapoint_info;
 use std::sync::Arc as StdArc;
 use tokio::{
     net::UnixListener,
@@ -256,28 +255,23 @@ impl ShredstreamProxy for ShredstreamProxyService {
 
         tokio::spawn(async move {
             while let Ok(entry) = entry_receiver.recv().await {
-                let entry_received_time = Instant::now();
                 let slot = entry.slot;
 
                 let parsed_txs = PumpFunParser::parse_entries(&entry.entries, &filter);
-                let parse_complete_time = Instant::now();
 
                 for parsed_tx in parsed_txs {
+                    info!(
+                        "[PARSED] slot={} signature={} origin={:?} trade_type={:?}",
+                        slot, parsed_tx.signature, parsed_tx.origin, parsed_tx.trade_type
+                    );
+
                     let pb_tx = convert_to_proto(&parsed_tx, entry.slot);
-                    let send_start_time = Instant::now();
 
                     match tx.send(Ok(pb_tx)).await {
                         Ok(_) => {
-                            let total_latency = entry_received_time.elapsed().as_millis() as i64;
-                            let parse_latency = parse_complete_time.elapsed().as_millis() as i64;
-                            let send_latency = send_start_time.elapsed().as_millis() as i64;
-
-                            datapoint_info!(
-                                "shredstream_proxy-tx_timing",
-                                ("slot", slot as i64, i64),
-                                ("total_latency_ms", total_latency, i64),
-                                ("parse_latency_ms", parse_latency, i64),
-                                ("send_latency_ms", send_latency, i64),
+                            info!(
+                                "[SENT_TO_CLIENT] slot={} signature={}",
+                                slot, parsed_tx.signature
                             );
                         }
                         Err(_e) => {
