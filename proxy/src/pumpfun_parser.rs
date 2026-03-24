@@ -106,11 +106,8 @@ impl PumpFunParser {
                 if let Some((trade_type, token_amount, sol_amount)) =
                     Self::parse_pumpfun_args(discriminator, data)
                 {
-                    let signer = account_keys
-                        .get(0)
-                        .map(|k| k.to_string())
-                        .unwrap_or_default();
-                    let mint = Self::resolve_mint(account_keys, instruction, 2).unwrap_or_default();
+                    let signer = account_keys.get(0)?.to_string();
+                    let mint = Self::resolve_mint(account_keys, instruction, 2)?;
 
                     return Some(ParsedTransaction {
                         slot: 0,
@@ -136,12 +133,8 @@ impl PumpFunParser {
                     let amount_in = u64::from_le_bytes(data[1..9].try_into().unwrap());
                     let min_amount_out = u64::from_le_bytes(data[9..17].try_into().unwrap());
 
-                    let signer = account_keys
-                        .get(0)
-                        .map(|k| k.to_string())
-                        .unwrap_or_default();
-                    let mint =
-                        Self::resolve_mint(account_keys, instruction, 10).unwrap_or_default();
+                    let signer = account_keys.get(0)?.to_string();
+                    let mint = Self::resolve_mint(account_keys, instruction, 10)?;
 
                     let trade_type = if is_sell {
                         TradeType::AxiomSell
