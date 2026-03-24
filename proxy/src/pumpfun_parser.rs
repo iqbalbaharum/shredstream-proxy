@@ -91,7 +91,7 @@ fn fetch_address_lookup_table(rpc_url: &str, alt: Pubkey) -> Result<Vec<Pubkey>,
     let mut pubkeys = Vec::with_capacity(addresses.len());
     for addr in addresses {
         let addr_str = addr.as_str().ok_or("Invalid address")?;
-        let pubkey: Pubkey = addr_str.parse().map_err(|e| e.to_string())?;
+        let pubkey = addr_str.parse::<Pubkey>().map_err(|e| e.to_string())?;
         pubkeys.push(pubkey);
     }
 
