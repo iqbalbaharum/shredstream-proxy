@@ -117,17 +117,20 @@ pub fn start_forwarder_threads(
 
                             deshredded_entries.drain(..).for_each(
                                 |(slot, entries, entries_bytes)| {
+                                    let tx_sigs: Vec<String> = entries
+                                        .iter()
+                                        .flat_map(|e| e.transactions.iter())
+                                        .flat_map(|t| t.signatures.iter())
+                                        .map(|s| s.to_string())
+                                        .take(20)
+                                        .collect();
+
                                     info!(
-                                        "[ENTRY_RECEIVED] slot={} num_entries={} first_tx_sig={:?}",
+                                        "[ENTRY_RECEIVED] slot={} num_entries={} tx_count={} sigs={:?}",
                                         slot,
                                         entries.len(),
-                                        entries.first().and_then(|e| e
-                                            .transactions
-                                            .first()
-                                            .and_then(|t| t
-                                                .signatures
-                                                .first()
-                                                .map(|s| s.to_string())))
+                                        tx_sigs.len(),
+                                        tx_sigs
                                     );
 
                                     let _ = entry_sender.send(PbEntry {
