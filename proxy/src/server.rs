@@ -260,11 +260,6 @@ impl ShredstreamProxy for ShredstreamProxyService {
                 let parsed_txs = PumpFunParser::parse_entries(&entry.entries, &filter);
 
                 for parsed_tx in parsed_txs {
-                    info!(
-                        "[TRACKING][PARSED] slot={} signature={} origin={:?} trade_type={:?}",
-                        slot, parsed_tx.signature, parsed_tx.origin, parsed_tx.trade_type
-                    );
-
                     let pb_tx = convert_to_proto(&parsed_tx, entry.slot);
 
                     match tx.send(Ok(pb_tx)).await {
