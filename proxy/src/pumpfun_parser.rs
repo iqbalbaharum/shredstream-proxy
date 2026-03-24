@@ -1,4 +1,4 @@
-use log::{debug, info};
+use log::{debug, info, warn};
 use solana_entry::entry::Entry;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::transaction::VersionedTransaction;
