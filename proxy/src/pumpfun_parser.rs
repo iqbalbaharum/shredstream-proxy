@@ -169,13 +169,25 @@ impl PumpFunParser {
         transaction: &VersionedTransaction,
         filter: &str,
     ) -> Option<ParsedTransaction> {
-        // Check for address table lookups - skip if unknown ALT
-        if Self::has_unknown_alt(&transaction) {
-            debug!("Skipping transaction with unknown address lookup table");
-            return None;
+        // Start with static account keys
+        let mut account_keys: Vec<Pubkey> = transaction.message.static_account_keys().to_vec();
+
+        // If there are address table lookups and they're in cache, resolve them
+        if let Some(lookups) = transaction.message.address_table_lookups() {
+            if !lookups.is_empty() {
+                let cache = KNOWN_ALT_CACHE.read().unwrap();
+                for lookup in lookups {
+                    if let Some(alt_addresses) = cache.get(&lookup.account_key) {
+                        // Append ALT addresses to account_keys
+                        for addr in alt_addresses {
+                            account_keys.push(*addr);
+                        }
+                    }
+                    // If ALT not in cache, we just use static keys (may cause out of bounds later)
+                }
+            }
         }
 
-        let account_keys = transaction.message.static_account_keys();
         let signature = transaction.signatures.get(0)?.to_string();
 
         for instruction in transaction.message.instructions() {
@@ -196,7 +208,7 @@ impl PumpFunParser {
                     Self::parse_pumpfun_args(discriminator, data)
                 {
                     let signer = account_keys.get(0)?.to_string();
-                    let mint = Self::resolve_mint(account_keys, instruction, 2)?;
+                    let mint = Self::resolve_mint(&account_keys, instruction, 2)?;
 
                     return Some(ParsedTransaction {
                         slot: 0,
@@ -223,7 +235,7 @@ impl PumpFunParser {
                     let min_amount_out = u64::from_le_bytes(data[9..17].try_into().unwrap());
 
                     let signer = account_keys.get(0)?.to_string();
-                    let mint = Self::resolve_mint(account_keys, instruction, 10)?;
+                    let mint = Self::resolve_mint(&account_keys, instruction, 10)?;
 
                     let trade_type = if is_sell {
                         TradeType::AxiomSell
@@ -293,28 +305,5 @@ impl PumpFunParser {
             }
         }
         None
-    }
-
-    fn has_unknown_alt(transaction: &VersionedTransaction) -> bool {
-        // Check if transaction has address table lookups
-        let address_table_lookups = match transaction.message.address_table_lookups() {
-            Some(lookups) => lookups,
-            None => return false, // No ALTs - safe to process
-        };
-
-        // If no ALTs, safe to process
-        if address_table_lookups.is_empty() {
-            return false;
-        }
-
-        // Check if all ALTs are known
-        let cache = KNOWN_ALT_CACHE.read().unwrap();
-        for lookup in address_table_lookups {
-            if !cache.contains_key(&lookup.account_key) {
-                return true; // Unknown ALT found
-            }
-        }
-
-        false // All ALTs are known
     }
 }
