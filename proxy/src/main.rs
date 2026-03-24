@@ -233,7 +233,7 @@ fn shutdown_notifier(exit: Arc<AtomicBool>) -> io::Result<(Sender<()>, Receiver<
 
 pub type ReconstructedShredsMap = HashMap<Slot, HashMap<u32 /* fec_set_index */, Vec<Shred>>>;
 fn main() -> Result<(), ShredstreamProxyError> {
-    env_logger::builder().init();
+    env_logger::builder().format_timestamp_millis().init();
 
     let all_args: Args = Args::parse();
 
