@@ -90,14 +90,17 @@ fn fetch_address_lookup_table(rpc_url: &str, alt: Pubkey) -> Result<Vec<Pubkey>,
         return Err("Account does not exist".to_string());
     }
 
-    // Try different encodings: "base64" returns array, "base64+zstd" returns string
-    let data = if let Some(data_str) = json["result"]["value"]["data"].as_str() {
+    // Parse the data - can be string or array [base64, "base64"]
+    let data = if let Some(data_arr) = json["result"]["value"]["data"].as_array() {
+        // Format is ["base64string", "base64"]
+        data_arr
+            .get(0)
+            .and_then(|v| v.as_str())
+            .ok_or("Invalid array format")?
+    } else if let Some(data_str) = json["result"]["value"]["data"].as_str() {
         data_str
-    } else if let Some(data_arr) = json["result"]["value"]["data"].as_array() {
-        // "base64" encoding returns array of strings
-        return Err(format!("Array encoding not supported, got: {:?}", data_arr));
     } else {
-        return Err("No data in response".to_string());
+        return Err("Unknown data format".to_string());
     };
 
     // Decode base64
