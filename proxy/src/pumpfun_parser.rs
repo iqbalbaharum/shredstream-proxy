@@ -25,6 +25,8 @@ static KNOWN_ALT_CACHE: LazyLock<Arc<RwLock<HashMap<Pubkey, Vec<Pubkey>>>>> =
     LazyLock::new(|| Arc::new(RwLock::new(HashMap::new())));
 
 pub fn init_lookup_tables(rpc_url: &str) {
+    info!("Initializing lookup tables with RPC: {}", rpc_url);
+
     let mut cache = KNOWN_ALT_CACHE.write().unwrap();
 
     // Fetch known ALT from RPC
@@ -37,7 +39,7 @@ pub fn init_lookup_tables(rpc_url: &str) {
                 cache.insert(alt, addresses);
             }
             Err(e) => {
-                debug!("Failed to fetch ALT {}: {}", alt, e);
+                warn!("Failed to fetch ALT {}: {}", alt, e);
             }
         }
     }
