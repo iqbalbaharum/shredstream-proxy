@@ -87,11 +87,7 @@ impl PumpFunParser {
         filter: &str,
     ) -> Option<ParsedTransaction> {
         let account_keys = transaction.message.static_account_keys();
-        let signature = transaction
-            .signatures
-            .get(0)
-            .map(|s| s.to_string())
-            .unwrap_or_default();
+        let signature = transaction.signatures.get(0)?.to_string();
 
         for instruction in transaction.message.instructions() {
             if instruction.data.len() < 8 {
