@@ -108,29 +108,22 @@ fn fetch_address_lookup_table(rpc_url: &str, alt: Pubkey) -> Result<Vec<Pubkey>,
     let decoded = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, data)
         .map_err(|e| e.to_string())?;
 
-    // Try zstd first, then fall back to raw bytes
-    let data = if let Ok(decompressed) = zstd::decode_all(decoded.as_slice()) {
-        decompressed
-    } else {
-        decoded
-    };
-
-    // Parse as AddressLookupTable
+    // Parse as AddressLookupTable (raw bytes, no zstd)
     // First 40 bytes: header (discriminator(8) + authority(32) = 40)
     // Then: num_addresses as u32, then the addresses
-    if data.len() < 44 {
+    if decoded.len() < 44 {
         return Err("ALT data too short".to_string());
     }
 
-    let num_addresses = u32::from_le_bytes(data[40..44].try_into().unwrap()) as usize;
+    let num_addresses = u32::from_le_bytes(decoded[40..44].try_into().unwrap()) as usize;
     let mut addresses = Vec::with_capacity(num_addresses);
 
     for i in 0..num_addresses {
         let offset = 44 + (i * 32);
-        if offset + 32 > data.len() {
+        if offset + 32 > decoded.len() {
             break;
         }
-        let pubkey_bytes: [u8; 32] = data[offset..offset + 32].try_into().unwrap();
+        let pubkey_bytes: [u8; 32] = decoded[offset..offset + 32].try_into().unwrap();
         addresses.push(Pubkey::new_from_array(pubkey_bytes));
     }
 

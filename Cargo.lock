@@ -2786,7 +2786,6 @@ dependencies = [
  "tokio",
  "tonic 0.13.1",
  "tower 0.4.13",
- "zstd",
 ]
 
 [[package]]
