@@ -50,6 +50,7 @@ pub fn init_lookup_tables(rpc_url: &str) {
     );
 }
 
+#[allow(dead_code)]
 fn fetch_address_lookup_table(rpc_url: &str, alt: Pubkey) -> Result<Vec<Pubkey>, String> {
     let client = reqwest::blocking::Client::new();
 
