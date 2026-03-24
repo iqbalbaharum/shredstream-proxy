@@ -78,13 +78,27 @@ fn fetch_address_lookup_table(rpc_url: &str, alt: Pubkey) -> Result<Vec<Pubkey>,
 
     let json: serde_json::Value = response.json().map_err(|e| e.to_string())?;
 
+    // Debug: log the full response
+    debug!("RPC response: {:?}", json);
+
     if let Some(error) = json.get("error") {
         return Err(format!("RPC error: {}", error));
     }
 
-    let data = json["result"]["value"]["data"]
-        .as_str()
-        .ok_or("No data in response")?;
+    // Check if account exists
+    if json["result"]["value"].is_null() {
+        return Err("Account does not exist".to_string());
+    }
+
+    // Try different encodings: "base64" returns array, "base64+zstd" returns string
+    let data = if let Some(data_str) = json["result"]["value"]["data"].as_str() {
+        data_str
+    } else if let Some(data_arr) = json["result"]["value"]["data"].as_array() {
+        // "base64" encoding returns array of strings
+        return Err(format!("Array encoding not supported, got: {:?}", data_arr));
+    } else {
+        return Err("No data in response".to_string());
+    };
 
     // Decode base64
     let decoded = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, data)
