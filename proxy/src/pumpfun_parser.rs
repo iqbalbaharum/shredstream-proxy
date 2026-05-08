@@ -8,17 +8,23 @@ use std::sync::{Arc, LazyLock, RwLock};
 const PUMP_BUY_DISCRIMINATOR: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
 const PUMP_SELL_DISCRIMINATOR: [u8; 8] = [51, 230, 133, 164, 1, 127, 131, 173];
 const PUMP_EXACT_IN_DISCRIMINATOR: [u8; 8] = [56, 252, 116, 8, 158, 223, 205, 95];
+const PUMP_CREATE_V2_DISCRIMINATOR: [u8; 8] = [214, 144, 76, 236, 95, 139, 49, 180];
+const PUMP_CREATE_DISCRIMINATOR: [u8; 8] = [24, 30, 200, 40, 5, 28, 7, 119];
 
 const PUMPFUN_PROGRAM_ID_STR: &str = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
 const AXIOM_PROGRAM_ID_STR: &str = "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9";
-
-// Known Address Lookup Table addresses for platforms
 const AXIOM_ALT_STR: &str = "7RKtfATWCe98ChuwecNq8XCzAzfoK3DtZTprFsPMGtio";
+const TOKEN_PROGRAM_ID_STR: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+const TOKEN_2022_PROGRAM_ID_STR: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 
 pub static PUMPFUN_PROGRAM_ID: LazyLock<Pubkey> =
     LazyLock::new(|| PUMPFUN_PROGRAM_ID_STR.parse().unwrap());
 pub static AXIOM_PROGRAM_ID: LazyLock<Pubkey> =
     LazyLock::new(|| AXIOM_PROGRAM_ID_STR.parse().unwrap());
+pub static TOKEN_PROGRAM_ID: LazyLock<Pubkey> =
+    LazyLock::new(|| TOKEN_PROGRAM_ID_STR.parse().unwrap());
+pub static TOKEN_2022_PROGRAM_ID: LazyLock<Pubkey> =
+    LazyLock::new(|| TOKEN_2022_PROGRAM_ID_STR.parse().unwrap());
 static AXIOM_ALT: LazyLock<Pubkey> = LazyLock::new(|| AXIOM_ALT_STR.parse().unwrap());
 
 // Cache for known lookup tables (ALT address -> list of resolved addresses)
@@ -107,6 +113,7 @@ pub enum TradeType {
     PumpfunBuyExactIn = 3,
     AxiomBuy = 4,
     AxiomSell = 5,
+    PumpfunCreate = 6,
 }
 
 impl From<TradeType> for i32 {
@@ -208,25 +215,48 @@ impl PumpFunParser {
                 if let Some((trade_type, token_amount, sol_amount)) =
                     Self::parse_pumpfun_args(discriminator, data)
                 {
-                    let signer = account_keys.get(0)?.to_string();
-                    let mint = Self::resolve_mint(&account_keys, instruction, 2)?;
+                    if trade_type == TradeType::PumpfunCreate {
+                        // For create: mint at account[0], signer at account[0]
+                        let signer = account_keys.get(0)?.to_string();
+                        let mint = Self::resolve_mint(&account_keys, instruction, 0)?;
 
-                    return Some(ParsedTransaction {
-                        slot: 0,
-                        signature,
-                        mint,
-                        signer,
-                        trade_type,
-                        origin: Origin::Pumpfun,
-                        token_amount,
-                        sol_amount,
-                        timestamp: 0,
-                    });
+                        return Some(ParsedTransaction {
+                            slot: 0,
+                            signature,
+                            mint,
+                            signer,
+                            trade_type,
+                            origin: Origin::Pumpfun,
+                            token_amount,
+                            sol_amount,
+                            timestamp: 0,
+                        });
+                    } else {
+                        if filter == "pumpfun_new" {
+                            continue;
+                        }
+
+                        let signer = account_keys.get(0)?.to_string();
+                        let mint = Self::resolve_mint(&account_keys, instruction, 2)?;
+
+                        return Some(ParsedTransaction {
+                            slot: 0,
+                            signature,
+                            mint,
+                            signer,
+                            trade_type,
+                            origin: Origin::Pumpfun,
+                            token_amount,
+                            sol_amount,
+                            timestamp: 0,
+                        });
+                    }
+                    
                 }
             }
 
             if *program_id == *AXIOM_PROGRAM_ID {
-                if filter == "pumpfun" {
+                if filter == "pumpfun" || filter == "pumpfun_new" {
                     continue;
                 }
 
@@ -291,6 +321,10 @@ impl PumpFunParser {
             return Some((TradeType::PumpfunBuyExactIn, token_amount, sol_amount));
         }
 
+        if discriminator == PUMP_CREATE_DISCRIMINATOR || discriminator == PUMP_CREATE_V2_DISCRIMINATOR {
+            return Some((TradeType::PumpfunCreate, 0, 0));
+        }
+
         None
     }
 
@@ -307,4 +341,5 @@ impl PumpFunParser {
         }
         None
     }
+
 }

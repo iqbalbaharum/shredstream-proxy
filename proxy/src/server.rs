@@ -285,6 +285,7 @@ fn convert_to_proto(tx: &ParsedTransaction, slot: u64) -> PbParsedTransaction {
         TradeType::PumpfunBuyExactIn => ProtoTradeType::PumpfunBuyExactIn as i32,
         TradeType::AxiomBuy => ProtoTradeType::AxiomBuy as i32,
         TradeType::AxiomSell => ProtoTradeType::AxiomSell as i32,
+        TradeType::PumpfunCreate => ProtoTradeType::PumpfunCreate as i32,
     };
 
     let origin = match tx.origin {
