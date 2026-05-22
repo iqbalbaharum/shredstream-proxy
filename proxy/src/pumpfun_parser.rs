@@ -211,7 +211,7 @@ impl PumpFunParser {
                     continue;
                 }
 
-                let discriminator = &data[..8];
+                let discriminator: [u8; 8] = data[..8].try_into().unwrap();
                 if let Some((trade_type, token_amount, sol_amount)) =
                     Self::parse_pumpfun_args(discriminator, data)
                 {
@@ -298,7 +298,7 @@ impl PumpFunParser {
         None
     }
 
-    fn parse_pumpfun_args(discriminator: &[u8], data: &[u8]) -> Option<(TradeType, u64, u64)> {
+    fn parse_pumpfun_args(discriminator: [u8; 8], data: &[u8]) -> Option<(TradeType, u64, u64)> {
         if data.len() < 24 {
             return None;
         }
