@@ -10,6 +10,9 @@ const PUMP_SELL_DISCRIMINATOR: [u8; 8] = [51, 230, 133, 164, 1, 127, 131, 173];
 const PUMP_EXACT_IN_DISCRIMINATOR: [u8; 8] = [56, 252, 116, 8, 158, 223, 205, 95];
 const PUMP_CREATE_V2_DISCRIMINATOR: [u8; 8] = [214, 144, 76, 236, 95, 139, 49, 180];
 const PUMP_CREATE_DISCRIMINATOR: [u8; 8] = [24, 30, 200, 40, 5, 28, 7, 119];
+const PUMP_EXACT_QUOTE_IN_DISCRIMINATOR: [u8; 8] = [194, 171, 28, 70, 104, 77, 91, 47];
+const PUMP_BUY_V2_DISCRIMINATOR: [u8; 8] = [184, 23, 238, 97, 103, 197, 211, 61];
+const PUMP_SELL_V2_DISCRIMINATOR: [u8; 8] = [93, 246, 130, 60, 231, 233, 64, 178];
 
 const PUMPFUN_PROGRAM_ID_STR: &str = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
 const AXIOM_PROGRAM_ID_STR: &str = "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9";
@@ -114,6 +117,9 @@ pub enum TradeType {
     AxiomBuy = 4,
     AxiomSell = 5,
     PumpfunCreate = 6,
+    PumpfunBuyV2 = 7,
+    PumpfunSellV2 = 8,
+    PumpfunBuyExactQuoteIn = 9,
 }
 
 impl From<TradeType> for i32 {
@@ -309,13 +315,31 @@ impl PumpFunParser {
             return Some((TradeType::PumpfunBuy, token_amount, sol_amount));
         }
 
+        if discriminator == PUMP_BUY_V2_DISCRIMINATOR {
+            let token_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
+            let sol_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
+            return Some((TradeType::PumpfunBuy, token_amount, sol_amount));
+        }
+
         if discriminator == PUMP_SELL_DISCRIMINATOR {
             let token_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
             let sol_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
             return Some((TradeType::PumpfunSell, token_amount, sol_amount));
         }
 
+        if discriminator == PUMP_SELL_V2_DISCRIMINATOR {
+            let token_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
+            let sol_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
+            return Some((TradeType::PumpfunSell, token_amount, sol_amount));
+        }
+
         if discriminator == PUMP_EXACT_IN_DISCRIMINATOR {
+            let sol_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
+            let token_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
+            return Some((TradeType::PumpfunBuyExactIn, token_amount, sol_amount));
+        }
+
+        if discriminator == PUMP_EXACT_QUOTE_IN_DISCRIMINATOR {
             let sol_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
             let token_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
             return Some((TradeType::PumpfunBuyExactIn, token_amount, sol_amount));
