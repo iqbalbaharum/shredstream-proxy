@@ -117,9 +117,6 @@ pub enum TradeType {
     AxiomBuy = 4,
     AxiomSell = 5,
     PumpfunCreate = 6,
-    PumpfunBuyV2 = 7,
-    PumpfunSellV2 = 8,
-    PumpfunBuyExactQuoteIn = 9,
 }
 
 impl From<TradeType> for i32 {
