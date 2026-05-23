@@ -25,6 +25,7 @@ const PUMP_BUY_DISCRIMINATORS: [[u8; 8]; 8] = [
 ];
 
 const AXIOM_PROGRAM_ID_STR: &str = "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9";
+const GMGN_PROGRAM_ID_STR: &str = "GMgnVFR8Jb39LoXsEVzb3DvBy3ywCmdmJquHUy1Lrkqb";
 
 static AXIOM_PROGRAM_ID: LazyLock<Pubkey> = LazyLock::new(|| AXIOM_PROGRAM_ID_STR.parse().unwrap());
 

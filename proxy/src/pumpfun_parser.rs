@@ -19,6 +19,7 @@ const AXIOM_PROGRAM_ID_STR: &str = "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9
 const AXIOM_ALT_STR: &str = "7RKtfATWCe98ChuwecNq8XCzAzfoK3DtZTprFsPMGtio";
 const TOKEN_PROGRAM_ID_STR: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const TOKEN_2022_PROGRAM_ID_STR: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
+const GMGN_PROGRAM_ID_STR: &str = "GMgnVFR8Jb39LoXsEVzb3DvBy3ywCmdmJquHUy1Lrkqb";
 
 pub static PUMPFUN_PROGRAM_ID: LazyLock<Pubkey> =
     LazyLock::new(|| PUMPFUN_PROGRAM_ID_STR.parse().unwrap());
@@ -29,6 +30,8 @@ pub static TOKEN_PROGRAM_ID: LazyLock<Pubkey> =
 pub static TOKEN_2022_PROGRAM_ID: LazyLock<Pubkey> =
     LazyLock::new(|| TOKEN_2022_PROGRAM_ID_STR.parse().unwrap());
 static AXIOM_ALT: LazyLock<Pubkey> = LazyLock::new(|| AXIOM_ALT_STR.parse().unwrap());
+pub static GMGN_PROGRAM_ID: LazyLock<Pubkey> =
+    LazyLock::new(|| GMGN_PROGRAM_ID_STR.parse().unwrap());
 
 // Cache for known lookup tables (ALT address -> list of resolved addresses)
 static KNOWN_ALT_CACHE: LazyLock<Arc<RwLock<HashMap<Pubkey, Vec<Pubkey>>>>> =
@@ -209,7 +212,7 @@ impl PumpFunParser {
             let program_id = account_keys.get(instruction.program_id_index as usize)?;
             let data = &instruction.data;
 
-            if *program_id == *PUMPFUN_PROGRAM_ID {
+            if *program_id == *PUMPFUN_PROGRAM_ID || *program_id == *GMGN_PROGRAM_ID {
                 if filter == "axiom" {
                     continue;
                 }
