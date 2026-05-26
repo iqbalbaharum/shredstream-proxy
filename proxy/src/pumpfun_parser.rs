@@ -289,12 +289,12 @@ impl PumpFunParser {
                     //     (min_amount_out, amount_in)
                     // };
                     let (token_amount, sol_amount) =
-                        if looks_like_sol(amount_in)
-                            && !looks_like_sol(min_amount_out)
+                        if Self::looks_like_sol(amount_in)
+                            && !Self::looks_like_sol(min_amount_out)
                         {
                             (min_amount_out, amount_in)
-                        } else if looks_like_sol(min_amount_out)
-                            && !looks_like_sol(amount_in)
+                        } else if Self::looks_like_sol(min_amount_out)
+                            && !Self::looks_like_sol(amount_in)
                         {
                             (amount_in, min_amount_out)
                         } else if amount_in > min_amount_out {
