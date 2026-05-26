@@ -38,6 +38,8 @@ pub static TOKEN_2022_PROGRAM_ID: LazyLock<Pubkey> =
 static AXIOM_ALT: LazyLock<Pubkey> = LazyLock::new(|| AXIOM_ALT_STR.parse().unwrap());
 pub static GMGN_PROGRAM_ID: LazyLock<Pubkey> =
     LazyLock::new(|| GMGN_PROGRAM_ID_STR.parse().unwrap());
+pub static TERMINAL_PROGRAM_ID: LazyLock<Pubkey> =
+    LazyLock::new(|| TERMINAL_PROGRAM_ID_STR.parse().unwrap());
 
 // Cache for known lookup tables (ALT address -> list of resolved addresses)
 static KNOWN_ALT_CACHE: LazyLock<Arc<RwLock<HashMap<Pubkey, Vec<Pubkey>>>>> =
