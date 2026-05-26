@@ -330,11 +330,11 @@ impl PumpFunParser {
                 let trade_type = if discriminator
                     == TERMINAL_BUY_DISCRIMINATOR
                 {
-                    TradeType::TerminalBuy
+                    TradeType::PumpfunBuy
                 } else if discriminator
                     == TERMINAL_SELL_DISCRIMINATOR
                 {
-                    TradeType::TerminalSell
+                    TradeType::PumpfunSell
                 } else {
                     continue;
                 };
