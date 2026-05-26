@@ -13,6 +13,11 @@ const PUMP_CREATE_DISCRIMINATOR: [u8; 8] = [24, 30, 200, 40, 5, 28, 7, 119];
 const PUMP_EXACT_QUOTE_IN_DISCRIMINATOR: [u8; 8] = [194, 171, 28, 70, 104, 77, 91, 47];
 const PUMP_BUY_V2_DISCRIMINATOR: [u8; 8] = [184, 23, 238, 97, 103, 197, 211, 61];
 const PUMP_SELL_V2_DISCRIMINATOR: [u8; 8] = [93, 246, 130, 60, 231, 233, 64, 178];
+const TERMINAL_BUY_DISCRIMINATOR: [u8; 8] =
+    [160, 187, 227, 151, 210, 5, 34, 85];
+
+const TERMINAL_SELL_DISCRIMINATOR: [u8; 8] =
+    [154, 231, 130, 238, 7, 46, 19, 115];
 
 const PUMPFUN_PROGRAM_ID_STR: &str = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
 const AXIOM_PROGRAM_ID_STR: &str = "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9";
@@ -20,6 +25,7 @@ const AXIOM_ALT_STR: &str = "7RKtfATWCe98ChuwecNq8XCzAzfoK3DtZTprFsPMGtio";
 const TOKEN_PROGRAM_ID_STR: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const TOKEN_2022_PROGRAM_ID_STR: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 const GMGN_PROGRAM_ID_STR: &str = "GMgnVFR8Jb39LoXsEVzb3DvBy3ywCmdmJquHUy1Lrkqb";
+const TERMINAL_PROGRAM_ID_STR: &str = "term9YPb9mzAsABaqN71A4xdbxHmpBNZavpBiQKZzN3";
 
 pub static PUMPFUN_PROGRAM_ID: LazyLock<Pubkey> =
     LazyLock::new(|| PUMPFUN_PROGRAM_ID_STR.parse().unwrap());
@@ -218,13 +224,13 @@ impl PumpFunParser {
                 }
 
                 let discriminator: [u8; 8] = data[..8].try_into().unwrap();
-                if let Some((trade_type, token_amount, sol_amount)) =
+                if let Some((trade_type, token_amount, sol_amount, idx_mint)) =
                     Self::parse_pumpfun_args(discriminator, data)
                 {
                     if trade_type == TradeType::PumpfunCreate {
                         // For create: mint at account[0], signer at account[0]
                         let signer = account_keys.get(0)?.to_string();
-                        let mint = Self::resolve_mint(&account_keys, instruction, 0)?;
+                        let mint = Self::resolve_mint(&account_keys, instruction, idx_mint)?;
 
                         return Some(ParsedTransaction {
                             slot: 0,
@@ -243,7 +249,7 @@ impl PumpFunParser {
                         }
 
                         let signer = account_keys.get(0)?.to_string();
-                        let mint = Self::resolve_mint(&account_keys, instruction, 2)?;
+                        let mint = Self::resolve_mint(&account_keys, instruction, idx_mint)?;
 
                         return Some(ParsedTransaction {
                             slot: 0,
@@ -267,13 +273,13 @@ impl PumpFunParser {
                 }
 
                 let discriminator: [u8; 8] = data[..8].try_into().unwrap();
-                if let Some((trade_type, token_amount, sol_amount)) =
+                if let Some((trade_type, token_amount, sol_amount, idx_mint)) =
                     Self::parse_gmgn_args(discriminator, data)
                 {
                     if trade_type == TradeType::PumpfunCreate {
                         // For create: mint at account[0], signer at account[0]
                         let signer = account_keys.get(0)?.to_string();
-                        let mint = Self::resolve_mint(&account_keys, instruction, 0)?;
+                        let mint = Self::resolve_mint(&account_keys, instruction, idx_mint)?;
 
                         return Some(ParsedTransaction {
                             slot: 0,
@@ -292,7 +298,7 @@ impl PumpFunParser {
                         }
 
                         let signer = account_keys.get(0)?.to_string();
-                        let mint = Self::resolve_mint(&account_keys, instruction, 2)?;
+                        let mint = Self::resolve_mint(&account_keys, instruction, idx_mint)?;
 
                         return Some(ParsedTransaction {
                             slot: 0,
@@ -308,6 +314,60 @@ impl PumpFunParser {
                     }
                     
                 }
+            }
+
+            if *program_id == *TERMINAL_PROGRAM_ID {
+                if filter == "axiom" {
+                    continue;
+                }
+                if data.len() < 24 {
+                    continue;
+                }
+
+                let discriminator: [u8; 8] =
+                    data[..8].try_into().unwrap();
+
+                let trade_type = if discriminator
+                    == TERMINAL_BUY_DISCRIMINATOR
+                {
+                    TradeType::TerminalBuy
+                } else if discriminator
+                    == TERMINAL_SELL_DISCRIMINATOR
+                {
+                    TradeType::TerminalSell
+                } else {
+                    continue;
+                };
+
+                let value_1 =
+                    u64::from_le_bytes(data[8..16].try_into().unwrap());
+
+                let value_2 =
+                    u64::from_le_bytes(data[16..24].try_into().unwrap());
+
+                let (token_amount, sol_amount) =
+                    if value_1 > value_2 {
+                        (value_1, value_2)
+                    } else {
+                        (value_2, value_1)
+                    };
+
+                let signer = account_keys.get(0)?.to_string();
+
+                let mint =
+                    Self::resolve_mint(&account_keys, instruction, 2)?;
+
+                return Some(ParsedTransaction {
+                    slot: 0,
+                    signature,
+                    mint,
+                    signer,
+                    trade_type,
+                    origin: Origin::Pumpfun,
+                    token_amount,
+                    sol_amount,
+                    timestamp: 0,
+                });
             }
 
             if *program_id == *AXIOM_PROGRAM_ID {
@@ -370,7 +430,7 @@ impl PumpFunParser {
         None
     }
 
-    fn parse_pumpfun_args(discriminator: [u8; 8], data: &[u8]) -> Option<(TradeType, u64, u64)> {
+    fn parse_pumpfun_args(discriminator: [u8; 8], data: &[u8]) -> Option<(TradeType, u64, u64, u64)> {
         if data.len() < 24 {
             return None;
         }
@@ -378,47 +438,47 @@ impl PumpFunParser {
         if discriminator == PUMP_BUY_DISCRIMINATOR {
             let token_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
             let sol_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
-            return Some((TradeType::PumpfunBuy, token_amount, sol_amount));
+            return Some((TradeType::PumpfunBuy, token_amount, sol_amount, 2));
         }
 
         if discriminator == PUMP_BUY_V2_DISCRIMINATOR {
             let token_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
             let sol_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
-            return Some((TradeType::PumpfunBuy, token_amount, sol_amount));
+            return Some((TradeType::PumpfunBuy, token_amount, sol_amount, 1));
         }
 
         if discriminator == PUMP_SELL_DISCRIMINATOR {
             let token_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
             let sol_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
-            return Some((TradeType::PumpfunSell, token_amount, sol_amount));
+            return Some((TradeType::PumpfunSell, token_amount, sol_amount, 2));
         }
 
         if discriminator == PUMP_SELL_V2_DISCRIMINATOR {
             let token_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
             let sol_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
-            return Some((TradeType::PumpfunSell, token_amount, sol_amount));
+            return Some((TradeType::PumpfunSell, token_amount, sol_amount, 1));
         }
 
         if discriminator == PUMP_EXACT_IN_DISCRIMINATOR {
             let sol_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
             let token_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
-            return Some((TradeType::PumpfunBuyExactIn, token_amount, sol_amount));
+            return Some((TradeType::PumpfunBuyExactIn, token_amount, sol_amount, 2));
         }
 
         if discriminator == PUMP_EXACT_QUOTE_IN_DISCRIMINATOR {
             let sol_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
             let token_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
-            return Some((TradeType::PumpfunBuyExactIn, token_amount, sol_amount));
+            return Some((TradeType::PumpfunBuyExactIn, token_amount, sol_amount, 1));
         }
 
         if discriminator == PUMP_CREATE_DISCRIMINATOR || discriminator == PUMP_CREATE_V2_DISCRIMINATOR {
-            return Some((TradeType::PumpfunCreate, 0, 0));
+            return Some((TradeType::PumpfunCreate, 0, 0, 0));
         }
 
         None
     }
 
-    fn parse_gmgn_args(discriminator: [u8; 8], data: &[u8]) -> Option<(TradeType, u64, u64)> {
+    fn parse_gmgn_args(discriminator: [u8; 8], data: &[u8]) -> Option<(TradeType, u64, u64, u64)> {
         if data.len() < 24 {
             return None;
         }
@@ -426,25 +486,25 @@ impl PumpFunParser {
         if discriminator == PUMP_BUY_DISCRIMINATOR {
             let sol_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
             let token_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
-            return Some((TradeType::PumpfunBuy, token_amount, sol_amount));
+            return Some((TradeType::PumpfunBuy, token_amount, sol_amount, 2));
         }
 
         if discriminator == PUMP_BUY_V2_DISCRIMINATOR {
             let sol_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
             let token_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
-            return Some((TradeType::PumpfunBuy, token_amount, sol_amount));
+            return Some((TradeType::PumpfunBuy, token_amount, sol_amount, 1));
         }
 
         if discriminator == PUMP_SELL_DISCRIMINATOR {
             let token_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
             let sol_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
-            return Some((TradeType::PumpfunSell, token_amount, sol_amount));
+            return Some((TradeType::PumpfunSell, token_amount, sol_amount, 2));
         }
 
         if discriminator == PUMP_SELL_V2_DISCRIMINATOR {
             let token_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
             let sol_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
-            return Some((TradeType::PumpfunSell, token_amount, sol_amount));
+            return Some((TradeType::PumpfunSell, token_amount, sol_amount, 1));
         }
 
         // if discriminator == PUMP_EXACT_IN_DISCRIMINATOR {
