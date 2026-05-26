@@ -430,7 +430,7 @@ impl PumpFunParser {
         None
     }
 
-    fn parse_pumpfun_args(discriminator: [u8; 8], data: &[u8]) -> Option<(TradeType, u64, u64, u64)> {
+    fn parse_pumpfun_args(discriminator: [u8; 8], data: &[u8]) -> Option<(TradeType, u64, u64, usize)> {
         if data.len() < 24 {
             return None;
         }
@@ -478,7 +478,7 @@ impl PumpFunParser {
         None
     }
 
-    fn parse_gmgn_args(discriminator: [u8; 8], data: &[u8]) -> Option<(TradeType, u64, u64, u64)> {
+    fn parse_gmgn_args(discriminator: [u8; 8], data: &[u8]) -> Option<(TradeType, u64, u64, usize)> {
         if data.len() < 24 {
             return None;
         }
