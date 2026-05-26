@@ -436,14 +436,14 @@ impl PumpFunParser {
         }
 
         if discriminator == PUMP_SELL_DISCRIMINATOR {
-            let sol_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
-            let token_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
+            let token_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
+            let sol_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
             return Some((TradeType::PumpfunSell, token_amount, sol_amount));
         }
 
         if discriminator == PUMP_SELL_V2_DISCRIMINATOR {
-            let sol_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
-            let token_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
+            let token_amount = u64::from_le_bytes(data[8..16].try_into().unwrap());
+            let sol_amount = u64::from_le_bytes(data[16..24].try_into().unwrap());
             return Some((TradeType::PumpfunSell, token_amount, sol_amount));
         }
 
