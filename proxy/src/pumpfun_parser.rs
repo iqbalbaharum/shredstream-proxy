@@ -266,7 +266,10 @@ impl PumpFunParser {
                     continue;
                 }
 
-                if data.len() == 22 && data[0] == 0x00 && (data[17] == 0x00 || data[17] == 0x01) {
+                if data.len() == 22 
+                    && data[0] == 0x00 
+                    && (data[17] == 0x00 || data[17] == 0x01)
+                {
                     let is_sell = data[17] == 0x01;
                     let amount_in = u64::from_le_bytes(data[1..9].try_into().unwrap());
                     let min_amount_out = u64::from_le_bytes(data[9..17].try_into().unwrap());
@@ -280,11 +283,25 @@ impl PumpFunParser {
                         TradeType::AxiomBuy
                     };
 
-                    let (token_amount, sol_amount) = if is_sell {
-                        (amount_in, min_amount_out)
-                    } else {
-                        (min_amount_out, amount_in)
-                    };
+                    // let (token_amount, sol_amount) = if is_sell {
+                    //     (amount_in, min_amount_out)
+                    // } else {
+                    //     (min_amount_out, amount_in)
+                    // };
+                    let (token_amount, sol_amount) =
+                        if looks_like_sol(amount_in)
+                            && !looks_like_sol(min_amount_out)
+                        {
+                            (min_amount_out, amount_in)
+                        } else if looks_like_sol(min_amount_out)
+                            && !looks_like_sol(amount_in)
+                        {
+                            (amount_in, min_amount_out)
+                        } else if amount_in > min_amount_out {
+                            (amount_in, min_amount_out)
+                        } else {
+                            (min_amount_out, amount_in)
+                        };
 
                     return Some(ParsedTransaction {
                         slot: 0,
@@ -364,6 +381,10 @@ impl PumpFunParser {
             }
         }
         None
+    }
+
+    fn looks_like_sol(v: u64) -> bool {
+        v < 100_000_000_000
     }
 
 }
