@@ -53,7 +53,7 @@ message SubscribeEntriesRequest {
 }
 
 message SubscribeParsedRequest {
-  string filter = 1;  // "all", "pumpfun", "axiom"
+  string filter = 1;  // "all", "pumpfun", "pumpfun_new", "axiom"
 }
 
 enum TradeType {
@@ -63,6 +63,7 @@ enum TradeType {
   TRADE_TYPE_PUMPFUN_BUY_EXACT_IN = 3;
   TRADE_TYPE_AXIOM_BUY = 4;
   TRADE_TYPE_AXIOM_SELL = 5;
+  TRADE_TYPE_PUMPFUN_CREATE = 6;
 }
 
 enum Origin {

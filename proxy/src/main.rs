@@ -252,8 +252,9 @@ fn main() -> Result<(), ShredstreamProxyError> {
     if args.endpoint_discovery_url.is_none()
         && args.discovered_endpoints_port.is_none()
         && args.dest_ip_ports.is_empty()
+        && args.grpc_socket_path.is_none()
     {
-        return Err(ShredstreamProxyError::IoError(io::Error::new(ErrorKind::InvalidInput, "No destinations found. You must provide values for --dest-ip-ports or --endpoint-discovery-url.")));
+        return Err(ShredstreamProxyError::IoError(io::Error::new(ErrorKind::InvalidInput, "No destinations found. You must provide values for --dest-ip-ports, --endpoint-discovery-url, or --grpc-socket-path.")));
     }
 
     // Initialize lookup tables if RPC URL provided
